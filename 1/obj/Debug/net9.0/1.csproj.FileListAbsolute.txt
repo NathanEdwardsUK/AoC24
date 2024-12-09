@@ -12,3 +12,4 @@
 /Users/nathanedwards/Dev/AoC/1/obj/Debug/net9.0/1.pdb
 /Users/nathanedwards/Dev/AoC/1/obj/Debug/net9.0/1.genruntimeconfig.cache
 /Users/nathanedwards/Dev/AoC/1/obj/Debug/net9.0/ref/1.dll
+/Users/nathanedwards/Dev/AoC/1/obj/Debug/net9.0/1.sourcelink.json
