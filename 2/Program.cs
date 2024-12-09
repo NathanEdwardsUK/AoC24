@@ -1,5 +1,26 @@
 ﻿using System.IO;
-string line = "";
+
+StreamReader sr = new StreamReader("/Users/nathanedwards/Dev/AoC/3/input.txt");
+linr = sr.ReadLine();
+Console.Write(line);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* string line = "";
 List<List<int>> inputList = []; 
 List<bool> safeList = []; 
 
@@ -103,4 +124,4 @@ while ((line = sr.ReadLine()) != null)
 }
 
 Console.Write($"Solution part 1 = {safeCount1}\n");
-Console.Write($"Solution part 2 = {safeCount2}\n");
+Console.Write($"Solution part 2 = {safeCount2}\n"); */
