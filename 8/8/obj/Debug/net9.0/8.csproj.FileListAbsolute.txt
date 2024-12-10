@@ -1,0 +1,15 @@
+/Users/nathanedwards/Dev/AoC/8/8/bin/Debug/net9.0/8
+/Users/nathanedwards/Dev/AoC/8/8/bin/Debug/net9.0/8.deps.json
+/Users/nathanedwards/Dev/AoC/8/8/bin/Debug/net9.0/8.runtimeconfig.json
+/Users/nathanedwards/Dev/AoC/8/8/bin/Debug/net9.0/8.dll
+/Users/nathanedwards/Dev/AoC/8/8/bin/Debug/net9.0/8.pdb
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.GeneratedMSBuildEditorConfig.editorconfig
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.AssemblyInfoInputs.cache
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.AssemblyInfo.cs
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.csproj.CoreCompileInputs.cache
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.sourcelink.json
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.dll
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/refint/8.dll
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.pdb
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/8.genruntimeconfig.cache
+/Users/nathanedwards/Dev/AoC/8/8/obj/Debug/net9.0/ref/8.dll
