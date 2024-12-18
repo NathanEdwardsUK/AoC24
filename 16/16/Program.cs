@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 char[,] stringToCharArray(string str)
@@ -18,22 +19,6 @@ char[,] stringToCharArray(string str)
 		}
 	}
 	return array;
-}
-
-int[] findCharInArray(char[,] _map, char ch)
-{
-	for (int i = 0; i < _map.GetLength(0); i++)
-	{
-		for (int j = 0; j < _map.GetLength(1); j++)
-		{
-			if (_map[i, j] == ch)
-			{
-				return [i, j];
-			}
-		}
-	}
-	
-	throw new Exception("Element not found in array");
 }
 
 void printMap(char[,] _map)
@@ -62,45 +47,23 @@ int[] nextDir(int[] dir)
 bool checkInBounds(char[,] _map, int[] pos) => (pos[0] >= 0 && pos[0] < _map.GetLength(0)
 											&& pos[1] >= 0 && pos[1] < _map.GetLength(1));
 
-bool checkPosInList(List<int[]> _path, int[] pos)
+int findNodeIdx(List<int[]> _nodes, int[] _node)
 {
-	foreach (int[] _pos in _path)
+	for (int i = 0; i < _nodes.Count; i++)
 	{
-		if (_pos[0] == pos[0] && _pos[1] == pos[1])
+		if (_nodes[i][0] == _node[0] && _nodes[i][1] == _node[1])
 		{
-			return true;
-		}
-	}
-	return false;
-}
-
-bool checkAllPathsContainEnd(char[,] _map, List<List<int[]>> _paths)
-{
-	foreach(List<int[]> path in _paths)
-	{
-		bool hasStart = false;
-		
-		foreach(int[] pos in path)
-		{
-			if (_map[pos[0], pos[1]] == 'E')
-			{
-				hasStart = true;
-				break;
-			}
-		}
-		
-		if (!hasStart)
-		{
-			return false;
+			return i;
 		}
 	}
 	
-	return true;
+	return -1;
 }
 
 Console.WriteLine($"Parsing data");
 var sr = new StreamReader("/Users/nathanedwards/Dev/AoC/16/16/input.txt");
-char[,] map = stringToCharArray(sr.ReadToEnd());
+string[] strArr = sr.ReadToEnd().Split("\n\n");
+char[,] map = stringToCharArray(strArr[0]);
 printMap(map);
 
 List<int[]> findEmptyNeighbours(char[,] _map, int[] _pos)
@@ -133,18 +96,77 @@ void printPath(List<int[]> path)
 	Console.WriteLine();
 }
 
-// Find every non divisible path and it's count
-(int[], int) findNextNode(char[,] _map, int[] startPos, int[] dir, int turnCount)
+/* --------------- Part 1 --------------- */
+/*
+Will need to implement Dijkstra's algorithm. Define a node as an empty space with at least 3 neighbouring empty spaces.
+1. Make an array of all unchecked nodes and an empty array for checked nodes
+2. Assign distance values to all nodes, 0 to starting node, inf (int32.MaxValue) to rest.
+3. Starting at the node with lowest value in the unchecked set. If empty go to 6
+4. Check the score distance to each adjacent node and set their distance values to the min of 
+   themselves and the prev nodes value + distance
+5. Move node to checked nodes
+6. Return the score of the end node
+
+The only tricky thing with this specific problem is that the direction of arriving at each node matters to the score.
+So I could arrive at one node from 2 different directions with the same score but the direction of arrival matters when 
+calculating the score of the next node. So I need to keep track of the min cost of arriving at each node PER direction.
+*/
+
+List<int[]> findAllnodes(char[,] _map)
 {
+	List<int[]> nodes = [];
+	
+	for (int i = 0; i < _map.GetLength(0); i++)
+	{
+		for (int j = 0; j < _map.GetLength(1); j++)
+		{
+			char ch = _map[i, j];
+			if (ch == 'E' || ch == 'S')
+			{
+				nodes.Add([i, j]);
+			}
+			else if (ch == '.' && findEmptyNeighbours(_map, [i, j]).Count >= 3)
+			{
+				nodes.Add([i, j]);
+			}
+		}
+	}
+	return nodes;
+}
+
+int getNodeIndexFromCh(List<int[]> _nodes, char ch)
+{
+	for (int i = 0; i < _nodes.Count; i++)
+	{
+		int[] node = _nodes[i];
+		if (map[node[0], node[1]] == ch)
+		{
+			return i;
+		}
+	}	
+	
+	throw new Exception("Node not found");
+}
+
+// Return next node, score of the path between nodes, dir of approach to next node, path between nodes
+(int[], int, int[], List<int[]>) findNextNode(char[,] _map, int[] startPos, int[] dir, int turnCount)
+{
+	List<int[]> path = [];
 	int stepCount = 1;
 	int[] nextPos = addPos(startPos, dir);
 	char ch = _map[nextPos[0], nextPos[1]];
+	
+	// If first ch is a wall return -1,-1 (meaning ignore)
+	if (ch == '#')
+	{
+		return ([-1,-1], 0, dir, path);
+	}
 
 	// While there is only 1 path to contiue through. End the function if there are multiple paths
-	while (ch == 'E' || ch == '#' || findEmptyNeighbours(_map, nextPos).Count == 2)
+	while (ch == 'S' || ch == '#' || findEmptyNeighbours(_map, nextPos).Count == 2)
 	{
 		// If we hit the end point break and return current pos and score
-		if (ch == 'E')
+		if (ch == 'E' || ch == 'S')
 		{
 			break;
 		}
@@ -163,12 +185,14 @@ void printPath(List<int[]> path)
 				dir = nextDir(nextDir(dir));
 				nextPos = addPos(startPos, dir);
 				ch = _map[nextPos[0], nextPos[1]];
-				if (ch == '#') throw new Exception("Should be 2 empty neighbours but couldn't find them");
+				// if (ch == '#') throw new Exception("Should be 2 empty neighbours but couldn't find them");
+				if (ch == '#') return ([-1,-1], 0, dir, path);
 			}
 		}
 		else
 		{
 			startPos = nextPos;
+			path.Add(nextPos);
 			stepCount++;
 			nextPos = addPos(startPos, dir);
 			ch = _map[nextPos[0], nextPos[1]];
@@ -176,133 +200,203 @@ void printPath(List<int[]> path)
 		
 	}
 	
-	return (nextPos, stepCount + 1000 * turnCount);
+	return (nextPos, stepCount + 1000 * turnCount, dir, path);
 }
 
-long findLowestScorePath(char[,] _map, List<int[]> path, long totalScore)
-{
-	int[] curNode = path.Last();
-	
-	// If we reached the end then just return the score
-	if (_map[curNode[0], curNode[1]] == 'E')
-	{
-		// Console.WriteLine(totalScore);
-		// printPath(path);
-		return totalScore;
-	}
-				
-	// If dead end then return +inf score
-	if (path.Count > 1 && findEmptyNeighbours(_map, curNode).Count == 1)
-	{
-		return Int32.MaxValue;
-	}
+// 1.
+List<int[]> uncheckedNodes = findAllnodes(map);
+List<int[]> checkedNodes = [];
+Dictionary<string, int[]> nodeDirsReached = [];
 
-	int[] dir = [-1, 0];
-	long minScore = Int32.MaxValue;
-	for (int dirCount = 0; dirCount < 4; dirCount++)
+// 2.
+List<long> scores = Enumerable.Repeat((long) Int32.MaxValue, uncheckedNodes.Count).ToList();
+List<long> finalScores = [];
+int startNodeIdx = getNodeIndexFromCh(uncheckedNodes, 'S');
+int[] startNode = uncheckedNodes[startNodeIdx];
+scores[startNodeIdx] = 0;
+nodeDirsReached[String.Join(",", startNode)] = [0, 1];
+
+// 3.
+while (uncheckedNodes.Count > 0)
+{
+	long minScore = scores.Min();
+	int minIdx = scores.IndexOf(minScore);
+	// Now find all adjacent nodes which haven't been checked yet
+	int[] node = uncheckedNodes[minIdx];
+	
+	int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
+	foreach (int[] dir in dirs)
 	{
-		// var path = new List<int[]>(paths[i]);
-		int[] nextPos = addPos(curNode, dir);
-		char ch = _map[nextPos[0], nextPos[1]];
-		if (ch != '#')
+		// Check if the direction leaving the node is the same as the dir that reached the node, if not we need to count an extra turn
+		int extraTurn = 0;
+		if (!Enumerable.SequenceEqual(dir, nodeDirsReached[String.Join(",", node)]))
 		{
-			// We are rotating in this function but still need to count it in the score of findNextNode
-			int turnCount = 0;
-			if (path.Count > 1 && dirCount > 0)
+			extraTurn = 1;	
+		}
+		(int[] nextNode, long score, int[] approachDir, _) = findNextNode(map, node, dir, extraTurn);
+		int idx = findNodeIdx(uncheckedNodes, nextNode);
+		
+		if (idx != -1)
+		{
+			if (scores[minIdx] + score <= scores[idx])
 			{
-				turnCount = 1;
-			}
-			
-			(int[] nextNode, int score) = findNextNode(_map, curNode, dir, turnCount);
-			
-			// If the node has already been visited in the list then pass
-			if (!checkPosInList(path, nextNode))
-			{
-				List<int[]> newPath = [.. path, nextNode];
-				long newScore = findLowestScorePath(_map, newPath, totalScore + score);
-				minScore = Math.Min(minScore, newScore);
+				scores[idx] = scores[minIdx] + score;
+				// Record the direction from which the shortest path was reached
+				nodeDirsReached[String.Join(",", nextNode)] = approachDir;
 			}
 		}
-		dir = nextDir(dir);
 	}
-	totalScore = minScore;
-		
-	return totalScore;
+	
+	checkedNodes.Add(node);
+	finalScores.Add(minScore);
+	uncheckedNodes.RemoveAt(minIdx);
+	scores.RemoveAt(minIdx);
 }
 
-// int findLowestScorePath2(char[,] _map)
-// {	
-// 	int[] startPos = findCharInArray(_map, 'S');
-// 	List<List<int[]>> paths = [[startPos]];
-// 	List<List<int[]>> completePaths = [];
-// 	List<int> scores = [0];
-// 	List<int> finalScores = [];
-	
-// 	// while (!checkAllPathsContainEnd(_map, paths))
-// 	while (paths.Count > 0)
-// 	{	
-// 		// Start at the last path and work backwards as we will be adding new paths to the end
-// 		for (int i = paths.Count - 1; i >= 0; i--)
-// 		{	
-// 			int[] curNode = paths[i].Last();
-			
-// 			// If we already reached the end then remove this path and print
-// 			if (_map[curNode[0], curNode[1]] == 'E')
-// 			{
-// 				completePaths.Add(paths[i]);
-// 				finalScores.Add(scores[i]);
-// 				printPath(paths[i]);
-// 				paths.RemoveAt(i);
-// 				scores.RemoveAt(i);
-// 			}
-			
-// 			int[] dir = [-1, 0];
-						
-// 			// If dead end delete the path AND block off the last node in the map then continue
-// 			if (findEmptyNeighbours(_map, curNode).Count == 1)
-// 			{
-// 				// printPath(paths[i]);
-// 				paths.RemoveAt(i);
-// 				scores.RemoveAt(i);
-// 				continue;
-// 			}
+int endNodeIdx = getNodeIndexFromCh(checkedNodes, 'E');
+long endNodeScore = finalScores[endNodeIdx];
+long solution1 = endNodeScore;
+Console.WriteLine("Solution 1 = " + solution1);
 
-// 			// For each non blocked direction find the next node in the path and add the path to the end
-// 			// of paths. Delete the old incomplete path later 
-// 			for (int dirCount = 0; dirCount < 4; dirCount++)
+// for (int i = 0; i < finalScores.Count; i++)
+// {
+// 	Console.WriteLine(String.Join(",", checkedNodes[i]) + " - " + finalScores[i]);
+// }
+
+/* --------------- Part 2 --------------- */
+/*
+Now I need to find all best paths and count the number of unique tiles. 
+I am going to do this by recursively exploring all paths, stopping when the path score exceeds the endNodeScore, 
+and counting all positions in the paths.
+*/
+
+int[,] posInBestPath = new int[map.GetLength(0), map.GetLength(1)];
+int[] endNode = checkedNodes[endNodeIdx];
+int [] endNodeApproachDir = nodeDirsReached[String.Join(",", endNode)];
+// I have to flip the end node approach dir as we are working backwards from the end now
+endNodeApproachDir = nextDir(nextDir(endNodeApproachDir));
+
+List<(int, int[])> idxsAndDirsOflastNodesInValidPaths = [(endNodeIdx, endNodeApproachDir)];
+
+// while (idxsAndDirsOflastNodesInValidPaths.Count > 0)
+// {
+// 	int[] curNode = checkedNodes[idxsAndDirsOflastNodesInValidPaths[0].Item1];
+// 	long curScore = finalScores[idxsAndDirsOflastNodesInValidPaths[0].Item1];
+// 	// int[] approachDir = idxsAndDirsOflastNodesInValidPaths[0].Item2;
+// 	int[] approachDir = nextDir(nextDir(nodeDirsReached[String.Join(",", curNode)]));
+// 	posInBestPath[curNode[0], curNode[1]] = 1;
+	
+// 	int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
+// 	foreach (int[] dir in dirs)
+// 	{
+// 		int extraTurn = 0;
+// 		if (!Enumerable.SequenceEqual(approachDir, dir))
+// 		{
+// 			extraTurn = 1;
+// 		}
+		
+// 		(int[] nextNode, long score, int[] nextApproachDir, List<int[]> path) = findNextNode(map, curNode, dir, extraTurn);
+		
+// 		int idx = findNodeIdx(checkedNodes, nextNode);
+// 		if (idx == -1)
+// 		{
+// 			continue;
+// 		}
+		
+// 		long nextNodeScore = finalScores[idx];
+		
+// 		// If this is true then the next node must be in a valid path
+// 		if (nextNodeScore + score <= curScore || nextNodeScore + score + 1000 == curScore)
+// 		{
+// 			bool contained = false;
+// 			foreach ((int, int[]) tup in idxsAndDirsOflastNodesInValidPaths)
 // 			{
-// 				var path = new List<int[]>(paths[i]);
-// 				int[] nextPos = addPos(curNode, dir);
-// 				char ch = _map[nextPos[0], nextPos[1]];
-// 				if (ch != '#')
+// 				if (idx == tup.Item1 && Enumerable.SequenceEqual(dir, tup.Item2))
 // 				{
-// 					(int[] nextNode, int score) = findNextNode(_map, nextPos, dir);
-// 					// If the node has already been visited in the list dont add it again
-// 					if (!checkPosInList(path, nextNode))
-// 					{
-// 						path.Add(nextNode);
-// 						score = scores[i] + score;
-// 						paths.Add(path);
-// 						scores.Add(score);
-// 					}
+// 					contained = true;
+// 					break;
 // 				}
-// 				dir = nextDir(dir);
 // 			}
 			
-// 			// Already added all new paths to the end of the list
-// 			paths.RemoveAt(i);
-// 			scores.RemoveAt(i);
+// 			if (!contained)
+// 			{
+// 				idxsAndDirsOflastNodesInValidPaths.Add((idx, nextApproachDir));
+// 				// approachDirs.Add(nextApproachDir);
+// 			}
+			
+// 			// Then update our array of positions to show that this path is a subset of a best path
+// 			foreach (int[] pos in path)
+// 			{
+// 				posInBestPath[pos[0], pos[1]] = 1;
+// 			}
 // 		}
 // 	}
 	
-// 	return scores.Min();
+// 	idxsAndDirsOflastNodesInValidPaths.RemoveAt(0);
+// 	// approachDirs.RemoveAt(0);
 // }
 
-int[] startPos = findCharInArray(map, 'S');
-(int[] a , int b) = findNextNode(map, startPos, [0, 1], 0);
-(int[] a2 , int b2) = findNextNode(map, [4,11], [0,1], 1);
-long solution1 = findLowestScorePath(map, [startPos], 0);
-Console.WriteLine("Solution 1 = " + solution1);
+// Hashset recursion attempt
+if (false)
+{
+	HashSet<string> listToStringSet(List<int[]> list)
+	{
+		HashSet<string> set = new ();
+		foreach (int[] pos in list)
+		{
+			set.Add(String.Join(",", pos));
+		}
+		
+		return set;
+	}
+	
+	HashSet<string> findLowestScorePath(char[,] _map, List<int[]> _path, HashSet<string> _validCells, int[] _node, long _curScore, long _maxScore, int[] _approachDir)
+	{
+		// If we reached the end then just return the valid cells
+		if (_map[_node[0], _node[1]] == 'E')
+		{
+			_validCells = listToStringSet(_path);
+			return _validCells;
+		}
+
+		int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
+		foreach (int[] dir in dirs)
+		{
+			int extraTurn = 0;
+			if(!Enumerable.SequenceEqual(dir, _approachDir))
+			{
+				extraTurn++;
+			}
+			
+			(int[] nextNode, long score, int[] nextApproachDir, List<int[]> nextPath) = findNextNode(_map, _node, dir, extraTurn);
+			
+			if (findNodeIdx(checkedNodes, nextNode) == -1 || findNodeIdx(_path, nextNode) != -1)
+			{
+				continue;	
+			}
+		
+			if (_curScore + score > _maxScore)
+			{	
+				continue;
+			}
+			
+			// Console.WriteLine(String.Join(",",nextNode) + " score = " + (_curScore + score));
+			// printPath([.._path, nextNode]);
+			// _validCells = [.._validCells, ..findLowestScorePath(_map, [.._path, ..nextPath, nextNode], _validCells, nextNode, _curScore + score, _maxScore, nextApproachDir)];
+			foreach (string cell in findLowestScorePath(_map, [.._path, ..nextPath, nextNode], _validCells, nextNode, _curScore + score, _maxScore, nextApproachDir))
+			{
+				_validCells.Add(cell);
+			}
+		}
+
+		return _validCells;
+	}
+
+	HashSet<string> validCells = findLowestScorePath(map, [startNode], [], startNode, 0, endNodeScore, [0, 1]);
+	int solution2 = validCells.Count;
+
+	Console.WriteLine("Solution 2 = " + solution2);
+}
 
 
 
