@@ -44,6 +44,8 @@ int[] nextDir(int[] dir)
 	else throw new Exception("invalid dir");
 }
 
+int[] reverseDir(int[] dir) => nextDir(nextDir(dir));
+
 bool checkInBounds(char[,] _map, int[] pos) => (pos[0] >= 0 && pos[0] < _map.GetLength(0)
 											&& pos[1] >= 0 && pos[1] < _map.GetLength(1));
 
@@ -134,14 +136,16 @@ List<int[]> findAllnodes(char[,] _map)
 	return nodes;
 }
 
-int getNodeIndexFromCh(List<int[]> _nodes, char ch)
+int[] getNodeFromCh(char[,] _map, char ch)
 {
-	for (int i = 0; i < _nodes.Count; i++)
+	for (int i = 0; i < _map.GetLength(0); i++)
 	{
-		int[] node = _nodes[i];
-		if (map[node[0], node[1]] == ch)
+		for (int j = 0; j < _map.GetLength(1); j++)
 		{
-			return i;
+			if (_map[i, j] == ch)
+			{
+				return [i, j];
+			}	
 		}
 	}	
 	
@@ -151,7 +155,7 @@ int getNodeIndexFromCh(List<int[]> _nodes, char ch)
 // Return next node, score of the path between nodes, dir of approach to next node, path between nodes
 (int[], int, int[], List<int[]>) findNextNode(char[,] _map, int[] startPos, int[] dir, int turnCount)
 {
-	List<int[]> path = [];
+	List<int[]> path = [startPos];
 	int stepCount = 1;
 	int[] nextPos = addPos(startPos, dir);
 	char ch = _map[nextPos[0], nextPos[1]];
@@ -182,7 +186,7 @@ int getNodeIndexFromCh(List<int[]> _nodes, char ch)
 			// Horrible hacky nested if statement but there are only 2 ways to turn and this works
 			if (ch == '#')
 			{
-				dir = nextDir(nextDir(dir));
+				dir = reverseDir(dir);
 				nextPos = addPos(startPos, dir);
 				ch = _map[nextPos[0], nextPos[1]];
 				// if (ch == '#') throw new Exception("Should be 2 empty neighbours but couldn't find them");
@@ -203,65 +207,85 @@ int getNodeIndexFromCh(List<int[]> _nodes, char ch)
 	return (nextPos, stepCount + 1000 * turnCount, dir, path);
 }
 
-// 1.
-List<int[]> uncheckedNodes = findAllnodes(map);
-List<int[]> checkedNodes = [];
-Dictionary<string, int[]> nodeDirsReached = [];
-
-// 2.
-List<long> scores = Enumerable.Repeat((long) Int32.MaxValue, uncheckedNodes.Count).ToList();
-List<long> finalScores = [];
-int startNodeIdx = getNodeIndexFromCh(uncheckedNodes, 'S');
-int[] startNode = uncheckedNodes[startNodeIdx];
-scores[startNodeIdx] = 0;
-nodeDirsReached[String.Join(",", startNode)] = [0, 1];
-
-// 3.
-while (uncheckedNodes.Count > 0)
+// Return nodes, nodeApproachedDirs, scores
+(List<int[]> , Dictionary<string, int[]> , List<long>) dijkstra(char[,] _map, (int[], int[]) _ignoredNodeDirPair)
 {
-	long minScore = scores.Min();
-	int minIdx = scores.IndexOf(minScore);
-	// Now find all adjacent nodes which haven't been checked yet
-	int[] node = uncheckedNodes[minIdx];
+	int[] ignoredNode = _ignoredNodeDirPair.Item1;
+	int[] ignoredDir = _ignoredNodeDirPair.Item2;
 	
-	int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
-	foreach (int[] dir in dirs)
+	// 1.
+	List<int[]> uncheckedNodes = findAllnodes(_map);
+	List<int[]> checkedNodes = [];
+	Dictionary<string, int[]> nodeDirsReached = [];
+
+	// 2.
+	List<long> scores = Enumerable.Repeat((long) Int32.MaxValue, uncheckedNodes.Count).ToList();
+	List<long> finalScores = [];
+	int[] startNode = getNodeFromCh(_map, 'S');
+	int startNodeIdx = findNodeIdx(uncheckedNodes, startNode);
+	scores[startNodeIdx] = 0;
+	nodeDirsReached[String.Join(",", startNode)] = [0, 1];
+
+	// 3.
+	while (uncheckedNodes.Count > 0)
 	{
-		// Check if the direction leaving the node is the same as the dir that reached the node, if not we need to count an extra turn
-		int extraTurn = 0;
-		if (!Enumerable.SequenceEqual(dir, nodeDirsReached[String.Join(",", node)]))
+		long minScore = scores.Min();
+		// If true then no more nodes are reachable
+		if (minScore == Int32.MaxValue)
 		{
-			extraTurn = 1;	
+			return (checkedNodes, nodeDirsReached, finalScores);
 		}
-		(int[] nextNode, long score, int[] approachDir, _) = findNextNode(map, node, dir, extraTurn);
-		int idx = findNodeIdx(uncheckedNodes, nextNode);
+		int minIdx = scores.IndexOf(minScore);
 		
-		if (idx != -1)
-		{
-			if (scores[minIdx] + score <= scores[idx])
+		// Now find all adjacent nodes which haven't been checked yet
+		int[] node = uncheckedNodes[minIdx];
+		
+		int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
+		foreach (int[] dir in dirs)
+		{	
+			// Check if the direction leaving the node is the same as the dir that reached the node, if not we need to count an extra turn
+			int extraTurn = 0;
+			if (!Enumerable.SequenceEqual(dir, nodeDirsReached[String.Join(",", node)]))
 			{
-				scores[idx] = scores[minIdx] + score;
-				// Record the direction from which the shortest path was reached
-				nodeDirsReached[String.Join(",", nextNode)] = approachDir;
+				extraTurn = 1;	
+			}
+			(int[] nextNode, long score, int[] approachDir, _) = findNextNode(_map, node, dir, extraTurn);
+			int idx = findNodeIdx(uncheckedNodes, nextNode);
+			
+			if (idx != -1)
+			{
+				// For part 2, if we are at a specific node moving in a specific direction the skip.
+				if (Enumerable.SequenceEqual(nextNode, ignoredNode) && Enumerable.SequenceEqual(approachDir, ignoredDir))
+				{
+					continue;
+				}	
+					
+				if (scores[minIdx] + score <= scores[idx])
+				{
+					scores[idx] = scores[minIdx] + score;
+					// Record the direction from which the shortest path was reached
+					nodeDirsReached[String.Join(",", nextNode)] = approachDir;
+				}
 			}
 		}
+		
+		checkedNodes.Add(node);
+		finalScores.Add(minScore);
+		uncheckedNodes.RemoveAt(minIdx);
+		scores.RemoveAt(minIdx);
 	}
 	
-	checkedNodes.Add(node);
-	finalScores.Add(minScore);
-	uncheckedNodes.RemoveAt(minIdx);
-	scores.RemoveAt(minIdx);
+	return (checkedNodes, nodeDirsReached, finalScores);
 }
 
-int endNodeIdx = getNodeIndexFromCh(checkedNodes, 'E');
-long endNodeScore = finalScores[endNodeIdx];
+(List<int[]> nodes, Dictionary<string, int[]> nodeApproachedDirs, List<long> scores) = dijkstra(map, ([],[]));
+
+int[] startNode = getNodeFromCh(map, 'S');
+int[] endNode = getNodeFromCh(map, 'E');
+int endNodeIdx = findNodeIdx(nodes, endNode);
+long endNodeScore = scores[endNodeIdx];
 long solution1 = endNodeScore;
 Console.WriteLine("Solution 1 = " + solution1);
-
-// for (int i = 0; i < finalScores.Count; i++)
-// {
-// 	Console.WriteLine(String.Join(",", checkedNodes[i]) + " - " + finalScores[i]);
-// }
 
 /* --------------- Part 2 --------------- */
 /*
@@ -270,134 +294,105 @@ I am going to do this by recursively exploring all paths, stopping when the path
 and counting all positions in the paths.
 */
 
-int[,] posInBestPath = new int[map.GetLength(0), map.GetLength(1)];
-int[] endNode = checkedNodes[endNodeIdx];
-int [] endNodeApproachDir = nodeDirsReached[String.Join(",", endNode)];
-// I have to flip the end node approach dir as we are working backwards from the end now
-endNodeApproachDir = nextDir(nextDir(endNodeApproachDir));
-
-List<(int, int[])> idxsAndDirsOflastNodesInValidPaths = [(endNodeIdx, endNodeApproachDir)];
-
-// while (idxsAndDirsOflastNodesInValidPaths.Count > 0)
-// {
-// 	int[] curNode = checkedNodes[idxsAndDirsOflastNodesInValidPaths[0].Item1];
-// 	long curScore = finalScores[idxsAndDirsOflastNodesInValidPaths[0].Item1];
-// 	// int[] approachDir = idxsAndDirsOflastNodesInValidPaths[0].Item2;
-// 	int[] approachDir = nextDir(nextDir(nodeDirsReached[String.Join(",", curNode)]));
-// 	posInBestPath[curNode[0], curNode[1]] = 1;
-	
-// 	int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
-// 	foreach (int[] dir in dirs)
-// 	{
-// 		int extraTurn = 0;
-// 		if (!Enumerable.SequenceEqual(approachDir, dir))
-// 		{
-// 			extraTurn = 1;
-// 		}
-		
-// 		(int[] nextNode, long score, int[] nextApproachDir, List<int[]> path) = findNextNode(map, curNode, dir, extraTurn);
-		
-// 		int idx = findNodeIdx(checkedNodes, nextNode);
-// 		if (idx == -1)
-// 		{
-// 			continue;
-// 		}
-		
-// 		long nextNodeScore = finalScores[idx];
-		
-// 		// If this is true then the next node must be in a valid path
-// 		if (nextNodeScore + score <= curScore || nextNodeScore + score + 1000 == curScore)
-// 		{
-// 			bool contained = false;
-// 			foreach ((int, int[]) tup in idxsAndDirsOflastNodesInValidPaths)
-// 			{
-// 				if (idx == tup.Item1 && Enumerable.SequenceEqual(dir, tup.Item2))
-// 				{
-// 					contained = true;
-// 					break;
-// 				}
-// 			}
-			
-// 			if (!contained)
-// 			{
-// 				idxsAndDirsOflastNodesInValidPaths.Add((idx, nextApproachDir));
-// 				// approachDirs.Add(nextApproachDir);
-// 			}
-			
-// 			// Then update our array of positions to show that this path is a subset of a best path
-// 			foreach (int[] pos in path)
-// 			{
-// 				posInBestPath[pos[0], pos[1]] = 1;
-// 			}
-// 		}
-// 	}
-	
-// 	idxsAndDirsOflastNodesInValidPaths.RemoveAt(0);
-// 	// approachDirs.RemoveAt(0);
-// }
-
-// Hashset recursion attempt
-if (false)
+(List<int[]>, List<int[]>) backTrackPath(char[,] _map, Dictionary<string, int[]> _nodeApproachedDirs)
 {
-	HashSet<string> listToStringSet(List<int[]> list)
+	int[] curNode = getNodeFromCh(_map, 'E');
+	int[] startNode = getNodeFromCh(_map, 'S');
+	List<int[]> pathNodes = [curNode];
+	List<int[]> totalPath = [curNode];
+	
+	while (!Enumerable.SequenceEqual(curNode, startNode))
 	{
-		HashSet<string> set = new ();
-		foreach (int[] pos in list)
-		{
-			set.Add(String.Join(",", pos));
-		}
+		int[] dir = _nodeApproachedDirs[String.Join(",", curNode)];
+		int[] revDir = reverseDir(dir);
 		
-		return set;
+		// Getting the previous node as we are working backwards from the end node to the start
+		(int[] prevNode, _, _, List<int[]> prevPath) = findNextNode(_map, curNode, revDir, 0);
+		pathNodes.Add(prevNode);
+		totalPath = [..prevPath, ..totalPath];
+		curNode = prevNode;
 	}
 	
-	HashSet<string> findLowestScorePath(char[,] _map, List<int[]> _path, HashSet<string> _validCells, int[] _node, long _curScore, long _maxScore, int[] _approachDir)
-	{
-		// If we reached the end then just return the valid cells
-		if (_map[_node[0], _node[1]] == 'E')
-		{
-			_validCells = listToStringSet(_path);
-			return _validCells;
-		}
+	return (pathNodes, totalPath);
 
-		int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
-		foreach (int[] dir in dirs)
+}
+
+(List<int[]> shortPathNodes, List<int[]> shortPath) = backTrackPath(map, nodeApproachedDirs);
+
+List<int[]> findAlternatePath(char[,] _map, (int[], int[]) _ignoredNodeDirPair, long _scoreToMatch)
+{
+	(List<int[]> newNodes, Dictionary<string, int[]> newNodeApproachedDirs, List<long> newScores) 
+		= dijkstra(map, _ignoredNodeDirPair);
+	int[] endNode = getNodeFromCh(map, 'E');
+	int endNodeIdx = findNodeIdx(newNodes, endNode);
+	// If true then the end node couldnt be reached
+	if (endNodeIdx == -1)
+	{
+		return[];
+	}
+	long endNodeScore = newScores[endNodeIdx];
+	
+	if (endNodeScore < _scoreToMatch)
+	{
+		throw new Exception("should not be possible to find a lower score");
+	}
+	else if (endNodeScore == _scoreToMatch)
+	{
+		(List<int[]> deletemenodes, List<int[]> newPath) = backTrackPath(_map, newNodeApproachedDirs);
+		return newPath;
+	}
+	
+	return [];
+}
+
+HashSet<string> goodSeats = [];
+goodSeats.Add(String.Join(",", startNode));
+goodSeats.Add(String.Join(",", endNode));
+foreach (int[] pos in shortPath)
+{
+	goodSeats.Add(String.Join(",", pos));
+}
+printSeats(goodSeats, map);
+
+void printSeats(HashSet<string> seats, char[,] _map)
+{
+	for (int i = 0; i < _map.GetLength(0); i++)
+	{
+		for (int j = 0; j < _map.GetLength(1); j++)
 		{
-			int extraTurn = 0;
-			if(!Enumerable.SequenceEqual(dir, _approachDir))
+			if (i == 0 || i == _map.GetLength(0) - 1 || j == 0 || j == _map.GetLength(1) - 1)
 			{
-				extraTurn++;
-			}
-			
-			(int[] nextNode, long score, int[] nextApproachDir, List<int[]> nextPath) = findNextNode(_map, _node, dir, extraTurn);
-			
-			if (findNodeIdx(checkedNodes, nextNode) == -1 || findNodeIdx(_path, nextNode) != -1)
-			{
-				continue;	
-			}
-		
-			if (_curScore + score > _maxScore)
-			{	
+				Console.Write("#");
 				continue;
 			}
 			
-			// Console.WriteLine(String.Join(",",nextNode) + " score = " + (_curScore + score));
-			// printPath([.._path, nextNode]);
-			// _validCells = [.._validCells, ..findLowestScorePath(_map, [.._path, ..nextPath, nextNode], _validCells, nextNode, _curScore + score, _maxScore, nextApproachDir)];
-			foreach (string cell in findLowestScorePath(_map, [.._path, ..nextPath, nextNode], _validCells, nextNode, _curScore + score, _maxScore, nextApproachDir))
+			if (seats.Contains($"{i},{j}"))
 			{
-				_validCells.Add(cell);
+				Console.Write("0");	
+			}
+			else
+			{
+				Console.Write(" ");
 			}
 		}
-
-		return _validCells;
+		Console.Write("\n");
 	}
-
-	HashSet<string> validCells = findLowestScorePath(map, [startNode], [], startNode, 0, endNodeScore, [0, 1]);
-	int solution2 = validCells.Count;
-
-	Console.WriteLine("Solution 2 = " + solution2);
 }
 
+foreach (int[] ignoredNode in shortPathNodes)
+{
+	if (Enumerable.SequenceEqual(ignoredNode, endNode) || Enumerable.SequenceEqual(ignoredNode, startNode))
+	{
+		continue;
+	}
+	int[] ignoredDir = nodeApproachedDirs[String.Join(",", ignoredNode)];
+	List<int[]> newPath = findAlternatePath(map, (ignoredNode, ignoredDir), endNodeScore);
+	foreach (int[] pos in newPath)
+	{
+		goodSeats.Add(String.Join(",", pos));
+	}
 
+}
 
-
+printSeats(goodSeats, map);
+Console.WriteLine("Solution 2 = " + goodSeats.Count);
