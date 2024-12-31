@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
+DateTime t0 = DateTime.Now;
+
 /* 
 --------------- Part 1 --------------- 
 I will be copying my code from day 16 again even though it is quite ugly. I don't want to waste 
@@ -126,6 +128,40 @@ List<int[]> findAllnodes(char[,] _map)
 	return nodes;
 }
 
+List<int[]> findDistanceToNeighbourNodes(char[,] _map, int[] _node)
+{
+	List<int[]> neighbourNodesAndDistances = [];
+	int[][] dirs = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+		
+	foreach (int[] dir in dirs)
+	{
+		(int[] node2, int score, _, _) = findNextNode(_map, _node, dir);
+		
+		if (node2[0] == -1)
+		{
+			continue;
+		}
+		
+		neighbourNodesAndDistances.Add([..node2, score]);
+	}
+	
+	return neighbourNodesAndDistances;
+}
+
+// Returns a list of links between neighbouring nodes (by index) and length of path. [node 1 idx, node 2 idx, score]
+Dictionary<string, List<int[]>> findNodesDistances(char[,] _map, List<int[]> _nodes)
+{
+	Dictionary<string, List<int[]>> nodeDistances = [];
+
+	for (int i = 0; i < _nodes.Count; i++)
+	{
+		int[] node1 = _nodes[i];
+		nodeDistances[String.Join(",", node1)] = findDistanceToNeighbourNodes(_map, node1);
+	}	
+	
+	return nodeDistances;
+}
+
 int[] getNodeFromCh(char[,] _map, char ch)
 {
 	for (int i = 0; i < _map.GetLength(0); i++)
@@ -143,7 +179,7 @@ int[] getNodeFromCh(char[,] _map, char ch)
 }
 
 // Return next node, score of the path between nodes, dir of approach to next node, path between nodes
-(int[], int, int[], List<int[]>) findNextNode(char[,] _map, int[] startPos, int[] dir, int turnCount)
+(int[], int, int[], List<int[]>) findNextNode(char[,] _map, int[] startPos, int[] dir)
 {
 	List<int[]> path = [startPos];
 	int stepCount = 1;
@@ -168,7 +204,6 @@ int[] getNodeFromCh(char[,] _map, char ch)
 		// Then we had to make 1 90degree turn, check if it's clockwise or cclockwise
 		if (ch == '#')
 		{
-			turnCount++;
 			dir = nextDir(dir);
 			nextPos = addPos(startPos, dir);
 			ch = _map[nextPos[0], nextPos[1]];
@@ -198,15 +233,11 @@ int[] getNodeFromCh(char[,] _map, char ch)
 }
 
 // Return nodes, nodeApproachedDirs, scores
-(List<int[]> , Dictionary<string, int[]> , List<long>) dijkstra(char[,] _map, (int[], int[]) _ignoredNodeDirPair)
-{
-	int[] ignoredNode = _ignoredNodeDirPair.Item1;
-	int[] ignoredDir = _ignoredNodeDirPair.Item2;
-	
+(List<int[]> , List<long>) dijkstra(char[,] _map, List<int[]> _nodes, Dictionary<string, List<int[]>>  _nodeDistances)
+{	
 	// 1.
-	List<int[]> uncheckedNodes = findAllnodes(_map);
+	List<int[]> uncheckedNodes = new (_nodes);
 	List<int[]> checkedNodes = [];
-	Dictionary<string, int[]> nodeDirsReached = [];
 
 	// 2.
 	List<long> scores = Enumerable.Repeat((long) Int32.MaxValue, uncheckedNodes.Count).ToList();
@@ -214,7 +245,6 @@ int[] getNodeFromCh(char[,] _map, char ch)
 	int[] startNode = getNodeFromCh(_map, 'S');
 	int startNodeIdx = findNodeIdx(uncheckedNodes, startNode);
 	scores[startNodeIdx] = 0;
-	nodeDirsReached[String.Join(",", startNode)] = [0, 1];
 
 	// 3.
 	while (uncheckedNodes.Count > 0)
@@ -223,38 +253,24 @@ int[] getNodeFromCh(char[,] _map, char ch)
 		// If true then no more nodes are reachable
 		if (minScore == Int32.MaxValue)
 		{
-			return (checkedNodes, nodeDirsReached, finalScores);
+			return (checkedNodes, finalScores);
 		}
 		int minIdx = scores.IndexOf(minScore);
 		
 		// Now find all adjacent nodes which haven't been checked yet
 		int[] node = uncheckedNodes[minIdx];
 		
-		int[][] dirs =  [[-1, 0], [0, 1], [1, 0], [0, -1]];
-		foreach (int[] dir in dirs)
-		{	
-			// Check if the direction leaving the node is the same as the dir that reached the node, if not we need to count an extra turn
-			int extraTurn = 0;
-			if (!Enumerable.SequenceEqual(dir, nodeDirsReached[String.Join(",", node)]))
-			{
-				extraTurn = 1;	
-			}
-			(int[] nextNode, long score, int[] approachDir, _) = findNextNode(_map, node, dir, extraTurn);
+		foreach (int[] nodeAndScore in _nodeDistances[String.Join(",", node)])
+		{
+			int[] nextNode = [nodeAndScore[0], nodeAndScore[1]];
+			int score = nodeAndScore[2];
 			int idx = findNodeIdx(uncheckedNodes, nextNode);
 			
 			if (idx != -1)
 			{
-				// For part 2, if we are at a specific node moving in a specific direction the skip.
-				if (Enumerable.SequenceEqual(nextNode, ignoredNode) && Enumerable.SequenceEqual(approachDir, ignoredDir))
-				{
-					continue;
-				}	
-					
 				if (scores[minIdx] + score <= scores[idx])
 				{
 					scores[idx] = scores[minIdx] + score;
-					// Record the direction from which the shortest path was reached
-					nodeDirsReached[String.Join(",", nextNode)] = approachDir;
 				}
 			}
 		}
@@ -265,14 +281,16 @@ int[] getNodeFromCh(char[,] _map, char ch)
 		scores.RemoveAt(minIdx);
 	}
 	
-	return (checkedNodes, nodeDirsReached, finalScores);
+	return (checkedNodes, finalScores);
 }
 
-(List<int[]> nodes, Dictionary<string, int[]> _, List<long> scores) = dijkstra(map, ([],[]));
+List<int[]> initialNodes = findAllnodes(map);
+Dictionary<string, List<int[]>> nodeDistances = findNodesDistances(map, initialNodes);
+(List<int[]> reachableNodes, List<long> scores) = dijkstra(map, initialNodes, nodeDistances);
 
 int[] startNode = getNodeFromCh(map, 'S');
 int[] endNode = getNodeFromCh(map, 'E');
-int endNodeIdx = findNodeIdx(nodes, endNode);
+int endNodeIdx = findNodeIdx(reachableNodes, endNode);
 long endNodeScore = scores[endNodeIdx];
 long trackLength = endNodeScore;
 
@@ -290,7 +308,19 @@ for (int i = 0; i < map.GetLength(0); i++)
 		if (map[i, j] == '#' && findEmptyNeighbours(map, [i, j]).Count > 1)
 		{
 			map[i, j] = '.';
-			(List<int[]> nodes2, Dictionary<string, int[]> _, List<long> scores2) = dijkstra(map, ([],[]));
+			List<int[]> initialNodes2 = new (initialNodes);
+			Dictionary<string, List<int[]>> nodeDistances2 = new (nodeDistances);
+
+			foreach (int[] neighbour in findEmptyNeighbours(map, [i, j]))
+			{
+				if (findEmptyNeighbours(map, neighbour).Count > 1)
+				{
+					initialNodes2.Add(neighbour);
+					nodeDistances2[String.Join(",", neighbour)] = findDistanceToNeighbourNodes(map, neighbour);
+				}
+			}
+						
+			(List<int[]> nodes2, List<long> scores2) = dijkstra(map, initialNodes2, nodeDistances);
 			map[i, j] = '#';
 			int endNodeIdx2 = findNodeIdx(nodes2, endNode);
 			long cheatTrackLength = scores2[endNodeIdx2];
@@ -311,8 +341,7 @@ for (int i = 0; i < map.GetLength(0); i++)
 	}
 }
 
-// List<long> sortedKeys = lengthSavedDict.Keys.ToList();
-// sortedKeys.Sort();
+
 long totalCheats = 0;
 foreach (long key in lengthSavedDict.Keys)
 {
@@ -322,5 +351,14 @@ foreach (long key in lengthSavedDict.Keys)
 		totalCheats += lengthSavedDict[key];
 	}
 }
-Console.WriteLine(totalCheats);
-// Console.WriteLine(String.Join(",", cheatTrackLengths));
+Console.WriteLine("Solution 1 = " + totalCheats);
+Console.WriteLine("time taken = " + (DateTime.Now - t0));
+
+/* 
+--------------- Part 2 --------------- 
+Now I need to remove wall pairs with 20 block radii.
+My original solution to part 1 ran quite slowly so I somewhat optimised my implementation of dijkstra.
+Removing wall pairs within in a 20 block radius is equivalent to adding 2 new nodes to my nodes list and the distance
+between them to my nodeDistances
+*/
+
