@@ -7,8 +7,6 @@ DateTime t0 = DateTime.Now;
 
 /* 
 --------------- Part 1 --------------- 
-I will be copying my code from day 16 again even though it is quite ugly. I don't want to waste 
-a lot of time rewriting it.
 */
 
 char[,] stringToCharArray(string str)
@@ -57,19 +55,6 @@ int[] reverseDir(int[] dir) => nextDir(nextDir(dir));
 bool checkInBounds(char[,] _map, int[] pos) => (pos[0] >= 0 && pos[0] < _map.GetLength(0)
 											&& pos[1] >= 0 && pos[1] < _map.GetLength(1));
 
-int findNodeIdx(List<int[]> _nodes, int[] _node)
-{
-	for (int i = 0; i < _nodes.Count; i++)
-	{
-		if (_nodes[i][0] == _node[0] && _nodes[i][1] == _node[1])
-		{
-			return i;
-		}
-	}
-	
-	return -1;
-}
-
 Console.WriteLine($"Parsing data");
 var sr = new StreamReader("/Users/nathanedwards/Dev/AoC/20/20/input.txt");
 string[] strArr = sr.ReadToEnd().Split("\n\n");
@@ -97,71 +82,6 @@ List<int[]> findEmptyNeighbours(char[,] _map, int[] _pos)
 	return emptyNeighbours;
 }
 
-void printPath(List<int[]> path)
-{
-	foreach (int[] p in path)
-	{
-		Console.Write($"[{p[0]},{p[1]}], ");
-	}
-	Console.WriteLine();
-}
-
-List<int[]> findAllnodes(char[,] _map)
-{
-	List<int[]> nodes = [];
-	
-	for (int i = 0; i < _map.GetLength(0); i++)
-	{
-		for (int j = 0; j < _map.GetLength(1); j++)
-		{
-			char ch = _map[i, j];
-			if (ch == 'E' || ch == 'S')
-			{
-				nodes.Add([i, j]);
-			}
-			else if (ch == '.' && findEmptyNeighbours(_map, [i, j]).Count >= 3)
-			{
-				nodes.Add([i, j]);
-			}
-		}
-	}
-	return nodes;
-}
-
-List<int[]> findDistanceToNeighbourNodes(char[,] _map, int[] _node)
-{
-	List<int[]> neighbourNodesAndDistances = [];
-	int[][] dirs = [[-1, 0], [0, 1], [1, 0], [0, -1]];
-		
-	foreach (int[] dir in dirs)
-	{
-		(int[] node2, int score, _, _) = findNextNode(_map, _node, dir);
-		
-		if (node2[0] == -1)
-		{
-			continue;
-		}
-		
-		neighbourNodesAndDistances.Add([..node2, score]);
-	}
-	
-	return neighbourNodesAndDistances;
-}
-
-// Returns a list of links between neighbouring nodes (by index) and length of path. [node 1 idx, node 2 idx, score]
-Dictionary<string, List<int[]>> findNodesDistances(char[,] _map, List<int[]> _nodes)
-{
-	Dictionary<string, List<int[]>> nodeDistances = [];
-
-	for (int i = 0; i < _nodes.Count; i++)
-	{
-		int[] node1 = _nodes[i];
-		nodeDistances[String.Join(",", node1)] = findDistanceToNeighbourNodes(_map, node1);
-	}	
-	
-	return nodeDistances;
-}
-
 int[] getNodeFromCh(char[,] _map, char ch)
 {
 	for (int i = 0; i < _map.GetLength(0); i++)
@@ -185,12 +105,6 @@ int[] getNodeFromCh(char[,] _map, char ch)
 	int stepCount = 1;
 	int[] nextPos = addPos(startPos, dir);
 	char ch = _map[nextPos[0], nextPos[1]];
-	
-	// If first ch is a wall return -1,-1 (meaning ignore)
-	if (ch == '#')
-	{
-		return ([-1,-1], 0, dir, path);
-	}
 
 	// While there is only 1 path to contiue through. End the function if there are multiple paths
 	while (ch == 'S' || ch == '#' || findEmptyNeighbours(_map, nextPos).Count == 2)
@@ -232,102 +146,121 @@ int[] getNodeFromCh(char[,] _map, char ch)
 	return (nextPos, stepCount, dir, path);
 }
 
-// Return nodes, nodeApproachedDirs, scores
-(List<int[]> , List<long>) dijkstra(char[,] _map, List<int[]> _nodes, Dictionary<string, List<int[]>>  _nodeDistances)
-{	
-	// 1.
-	List<int[]> uncheckedNodes = new (_nodes);
-	List<int[]> checkedNodes = [];
-
-	// 2.
-	List<long> scores = Enumerable.Repeat((long) Int32.MaxValue, uncheckedNodes.Count).ToList();
-	List<long> finalScores = [];
-	int[] startNode = getNodeFromCh(_map, 'S');
-	int startNodeIdx = findNodeIdx(uncheckedNodes, startNode);
-	scores[startNodeIdx] = 0;
-
-	// 3.
-	while (uncheckedNodes.Count > 0)
-	{
-		long minScore = scores.Min();
-		// If true then no more nodes are reachable
-		if (minScore == Int32.MaxValue)
-		{
-			return (checkedNodes, finalScores);
-		}
-		int minIdx = scores.IndexOf(minScore);
-		
-		// Now find all adjacent nodes which haven't been checked yet
-		int[] node = uncheckedNodes[minIdx];
-		
-		foreach (int[] nodeAndScore in _nodeDistances[String.Join(",", node)])
-		{
-			int[] nextNode = [nodeAndScore[0], nodeAndScore[1]];
-			int score = nodeAndScore[2];
-			int idx = findNodeIdx(uncheckedNodes, nextNode);
-			
-			if (idx != -1)
-			{
-				if (scores[minIdx] + score <= scores[idx])
-				{
-					scores[idx] = scores[minIdx] + score;
-				}
-			}
-		}
-		
-		checkedNodes.Add(node);
-		finalScores.Add(minScore);
-		uncheckedNodes.RemoveAt(minIdx);
-		scores.RemoveAt(minIdx);
-	}
-	
-	return (checkedNodes, finalScores);
-}
-
-List<int[]> initialNodes = findAllnodes(map);
-Dictionary<string, List<int[]>> nodeDistances = findNodesDistances(map, initialNodes);
-(List<int[]> reachableNodes, List<long> scores) = dijkstra(map, initialNodes, nodeDistances);
-
 int[] startNode = getNodeFromCh(map, 'S');
-int[] endNode = getNodeFromCh(map, 'E');
-int endNodeIdx = findNodeIdx(reachableNodes, endNode);
-long endNodeScore = scores[endNodeIdx];
-long trackLength = endNodeScore;
+(int[] endNode, _, _, List<int[]> path) = findNextNode(map, startNode, [-1, 0]);
+path.Add(endNode);
+int[,] scoreMap = new int[map.GetLength(0), map.GetLength(1)];
 
-// Now I found the track length without cheating I just need to cycle through every wall object, 
-// delete it and check the above again. I could make it more efficient by add a condition checking
-// whether a wall is worth deleting
+for (int i = 0; i < path.Count; i++)
+{
+	scoreMap[path[i][0], path[i][1]] = i;
+}
 
 SortedDictionary<long, long> lengthSavedDict = [];
 
 for (int i = 0; i < map.GetLength(0); i++)
 {
-	Console.WriteLine("i = " + i);
+	// Console.WriteLine("i = " + i);
 	for (int j = 0; j < map.GetLength(1); j++)
 	{
-		if (map[i, j] == '#' && findEmptyNeighbours(map, [i, j]).Count > 1)
+		if (map[i, j] != '#')
 		{
-			map[i, j] = '.';
-			List<int[]> initialNodes2 = new (initialNodes);
-			Dictionary<string, List<int[]>> nodeDistances2 = new (nodeDistances);
+			continue;
+		}
+		
+		List<int[]> neighbours = findEmptyNeighbours(map, [i, j]);
+		
+		if (neighbours.Count <= 1)
+		{
+			continue;
+		}
+		
+		List<int> neighbourScores = [];
+		foreach (int[] neighbour in neighbours)
+		{
+			neighbourScores.Add(scoreMap[neighbour[0], neighbour[1]]);
+		}
+		
+		int lengthSaved = neighbourScores.Max() - neighbourScores.Min() - 2;
+		
+		if (lengthSaved == 0)
+		{
+			continue;
+		}
+		
+		if (lengthSavedDict.Keys.Contains(lengthSaved))
+		{
+			lengthSavedDict[lengthSaved]++;
+		}
+		else
+		{
+			lengthSavedDict[lengthSaved] = 1;
+		}
+	}
+}
 
-			foreach (int[] neighbour in findEmptyNeighbours(map, [i, j]))
+long totalCheats = 0;
+foreach (long key in lengthSavedDict.Keys)
+{
+	// Console.WriteLine(lengthSavedDict[key] + ": " + key);
+	if (key >= 100)
+	{
+		totalCheats += lengthSavedDict[key];
+	}
+}
+Console.WriteLine("Solution 1 = " + totalCheats);
+Console.WriteLine("time taken = " + (DateTime.Now - t0));
+
+/* 
+--------------- Part 2 --------------- 
+Now I need to remove wall pairs with 20 block radii.
+*/
+
+lengthSavedDict = [];
+
+for (int i = 0; i < map.GetLength(0); i++)
+{
+	// Console.WriteLine("i = " + i);
+	for (int j = 0; j < map.GetLength(1); j++)
+	{
+		if (map[i, j] == '#')
+		{
+			continue;
+		}
+		
+		// Now cycle through every cell in a 20 by 20 radius and check if the cell is a '.' 
+		// and within distance 20 and saves 100 length
+		for (int di = -20; di <= 20; di++)
+		{
+			for (int dj = -20; dj <= 20; dj++)
 			{
-				if (findEmptyNeighbours(map, neighbour).Count > 1)
+				int x = i + di;
+				int y = j + dj;
+				
+				if (x < 0 || y < 0 || x >= map.GetLength(0) || y >= map.GetLength(1))
 				{
-					initialNodes2.Add(neighbour);
-					nodeDistances2[String.Join(",", neighbour)] = findDistanceToNeighbourNodes(map, neighbour);
+					continue;
 				}
-			}
-						
-			(List<int[]> nodes2, List<long> scores2) = dijkstra(map, initialNodes2, nodeDistances);
-			map[i, j] = '#';
-			int endNodeIdx2 = findNodeIdx(nodes2, endNode);
-			long cheatTrackLength = scores2[endNodeIdx2];
-			long lengthSaved = trackLength - cheatTrackLength;
-			
-			if (lengthSaved > 0)
-			{
+				
+				int lengthCheat = Math.Abs(di) + Math.Abs(dj);
+				
+				if (lengthCheat > 20)
+				{
+					continue;
+				}
+				
+				if (map[x, y] == '#')
+				{
+					continue;
+				}
+				
+				int lengthSaved = scoreMap[x, y] - scoreMap[i, j] - lengthCheat;
+				
+				if (lengthSaved < 100)
+				{
+					continue;
+				}
+				
 				if (lengthSavedDict.Keys.Contains(lengthSaved))
 				{
 					lengthSavedDict[lengthSaved]++;
@@ -341,24 +274,11 @@ for (int i = 0; i < map.GetLength(0); i++)
 	}
 }
 
-
-long totalCheats = 0;
+totalCheats = 0;
 foreach (long key in lengthSavedDict.Keys)
 {
-	Console.WriteLine(key + ": " + lengthSavedDict[key]);
-	if (key >= 100)
-	{
-		totalCheats += lengthSavedDict[key];
-	}
+	Console.WriteLine(lengthSavedDict[key] + ": " + key);
+	totalCheats += lengthSavedDict[key];
 }
-Console.WriteLine("Solution 1 = " + totalCheats);
+Console.WriteLine("Solution 2 = " + totalCheats);
 Console.WriteLine("time taken = " + (DateTime.Now - t0));
-
-/* 
---------------- Part 2 --------------- 
-Now I need to remove wall pairs with 20 block radii.
-My original solution to part 1 ran quite slowly so I somewhat optimised my implementation of dijkstra.
-Removing wall pairs within in a 20 block radius is equivalent to adding 2 new nodes to my nodes list and the distance
-between them to my nodeDistances
-*/
-
