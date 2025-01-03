@@ -1,96 +1,50 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Numerics;
+using System.Text.RegularExpressions;
 
 Console.WriteLine($"Parsing data");
 var sr = new StreamReader("/Users/nathanedwards/Dev/AoC/21/21/input.txt");
 string input = sr.ReadToEnd();
 string[] codes = input.Split("\n");
+Dictionary<string, List<string>> cache = [];
+Dictionary<string, List<string>> cache3 = [];
+Dictionary<string, BigInteger> cache2 = [];
 
 /* 
 --------------- Part 1 --------------- 
-Make functions which outputs a sequence of movements needed to press a button starting from another button
 7 8 9     ^ A
 4 5 6   < v >
 1 2 3
   0 A
-  
-Observation: Any sequence of arrows can be rearranged without affecting the length of the sequence e.g. >>^ = >^> = ^>>
-Observation: It's more efficient to press the same button repeatedly and then move on e.g. >>^ is more efficient to press than >^>
-
-So I after each iteration of sequence building rearrange the sequence to put all identical characters next to each other (in between A's)
 */
 
-// string pressButton(char _startChar, char _endChar, string padName)
-// {
-// 	string _sequence = "";
-// 	char[,] pad;
-	
-// 	(int x1, int y1) = (-1, -1);
-// 	(int x2, int y2) = (-1, -1);
-	
-// 	if (padName == "keypad")
-// 	{
-// 		pad = new char[,] {{'7', '8', '9'}, {'4', '5', '6'}, {'1', '2', '3'}, {'_', '0', 'A'}};
-// 	}
-// 	else if (padName == "controlPad")
-// 	{
-// 		pad = new char[,] {{'_', '^', 'A'}, {'<', 'v', '>'}};	
-// 	}
-// 	else
-// 	{
-// 		throw new Exception ("invalid padName");
-// 	}
-	
-// 	for (int i = 0; i < pad.GetLength(0); i++)
-// 	{
-// 		for (int j = 0; j < pad.GetLength(1); j++)
-// 		{
-// 			if (_startChar == pad[i, j])
-// 			{
-// 				(x1, y1) = (i, j);	
-// 			}
-			
-// 			if (_endChar == pad[i, j])
-// 			{
-// 				(x2, y2) = (i, j);	
-// 			}	
-// 		}
-// 	}
-	
-// 	if (x1 == -1 || y1 == -1 || x2 == -1 || y2 == -1)
-// 	{
-// 		throw new Exception("char not found");
-// 	}
-	
-// 	(int dx, int dy) = (x2 - x1, y2 - y1);
-	
-// 	if (dy > 0)
-// 	{
-// 		_sequence += String.Join("", Enumerable.Repeat(">", dy));
-// 	}
-// 	else if (dy < 0)
-// 	{
-// 		_sequence += String.Join("", Enumerable.Repeat("<", -dy));
-// 	}
-	
-// 	if (dx > 0)
-// 	{
-// 		_sequence += String.Join("", Enumerable.Repeat("v", dx));
-// 	}
-// 	else if (dx < 0)
-// 	{
-// 		_sequence += String.Join("", Enumerable.Repeat("^", -dx));
-// 	} 
-	
-// 	return _sequence + "A";
-// }
-
-string pressKeyPad(char _startChar, char _endChar)
+List<string> pressButton(char _startChar, char _endChar, string padName)
 {
-	string _sequence = "";
-	char[,] pad = {{'7', '8', '9'}, {'4', '5', '6'}, {'1', '2', '3'}, {'_', '0', 'A'}};
+	string key = "" + _startChar + _endChar;
+	
+	if (cache3.Keys.Contains(key))
+	{
+		return cache3[key];
+	}
+	
+	List<string> possibleSequences = [];
+	string possibleSeq;
+	char[,] pad;
 	
 	(int x1, int y1) = (-1, -1);
 	(int x2, int y2) = (-1, -1);
+	
+	if (padName == "keypad")
+	{
+		pad = new char[,] {{'7', '8', '9'}, {'4', '5', '6'}, {'1', '2', '3'}, {'_', '0', 'A'}};
+	}
+	else if (padName == "controlPad")
+	{
+		pad = new char[,] {{'_', '^', 'A'}, {'<', 'v', '>'}};	
+	}
+	else
+	{
+		throw new Exception ("invalid padName");
+	}
 	
 	for (int i = 0; i < pad.GetLength(0); i++)
 	{
@@ -114,194 +68,163 @@ string pressKeyPad(char _startChar, char _endChar)
 	}
 	
 	(int dx, int dy) = (x2 - x1, y2 - y1);
-	
-	if (dx < 0)
-	{
-		_sequence += String.Join("", Enumerable.Repeat("^", -dx));
-	} 
+	string yChar = "";
+	string xChar = "";
 	
 	if (dy > 0)
 	{
-		_sequence += String.Join("", Enumerable.Repeat(">", dy));
+		yChar = ">";
 	}
-	
-	if (dy < 0)
+	else if (dy < 0)
 	{
-		_sequence += String.Join("", Enumerable.Repeat("<", -dy));
+		yChar = "<";
 	}
 	
 	if (dx > 0)
 	{
-		_sequence += String.Join("", Enumerable.Repeat("v", dx));
+		xChar = "v";
 	}
-	
-	return _sequence + "A";
-}
-
-string pressControlPad(char _startChar, char _endChar)
-{
-	string _sequence = "";
-	char[,] pad = {{'_', '^', 'A'}, {'<', 'v', '>'}};
-	
-	(int x1, int y1) = (-1, -1);
-	(int x2, int y2) = (-1, -1);
-	
-	for (int i = 0; i < pad.GetLength(0); i++)
+	else if (dx < 0)
 	{
-		for (int j = 0; j < pad.GetLength(1); j++)
-		{
-			if (_startChar == pad[i, j])
-			{
-				(x1, y1) = (i, j);	
-			}
-			
-			if (_endChar == pad[i, j])
-			{
-				(x2, y2) = (i, j);	
-			}	
-		}
-	}
-	
-	if (x1 == -1 || y1 == -1 || x2 == -1 || y2 == -1)
-	{
-		throw new Exception("char not found");
-	}
-	
-	(int dx, int dy) = (x2 - x1, y2 - y1);
-	
-	if (dy < 0)
-	{
-		_sequence += String.Join("", Enumerable.Repeat("<", -dy));
-	}
-	
-	if (dx > 0)
-	{
-		_sequence += String.Join("", Enumerable.Repeat("v", dx));
-	}
-	
-	if (dy > 0)
-	{
-		_sequence += String.Join("", Enumerable.Repeat(">", dy));
-	}
-	
-	if (dx < 0)
-	{
-		_sequence += String.Join("", Enumerable.Repeat("^", -dx));
+		xChar = "^";
 	} 
 	
-	return _sequence + "A";
-}
-
-string getButtonSequence(string _code, bool isKeypad)
-{
-	char _startCh = 'A';
-	string _sequence = "";
-	// Console.WriteLine("Code = " + _code);
-
-	foreach (char _nextChar in _code)
+	// if the string is only made of one character then there is only one permutation
+	if (yChar == "")
 	{
-		if (isKeypad)
-		{
-			_sequence += pressKeyPad(_startCh, _nextChar);
-		}
-		else
-		{
-			_sequence += pressControlPad(_startCh, _nextChar);
-		}
-		// Console.WriteLine(pressButton(_startCh, _nextChar, padName));
-		_startCh = _nextChar;
+		possibleSequences = [String.Join("", Enumerable.Repeat(xChar, Math.Abs(dx))) + "A"];
 	}
-	// Console.WriteLine("Sequence = " + _sequence);
-	// string _optimisedSequence = optimiseSequence(_sequence);
-	return _sequence;
-}
-
-string optimiseSequence(string _sequence)
-{
-	string newSequence = "";
-	int i = 0;
-	
-	while(i < _sequence.Length)
+	else if (xChar == "")
 	{
-		char c = _sequence.ElementAt(i);
+		possibleSequences =  [String.Join("", Enumerable.Repeat(yChar, Math.Abs(dy))) + "A"];
+	}
+	// if the string has 2 arrow chars then there could be 2 permutations. 
+	// Have to check first that one doesnt lead to the empty space
+	else if (pad[x2, y1] == '_')
+	{
+		possibleSeq = String.Join("", Enumerable.Repeat(yChar, Math.Abs(dy)))
+					+ String.Join("", Enumerable.Repeat(xChar, Math.Abs(dx))) + "A";
+		possibleSequences = [possibleSeq];
+	}
+	else if (pad[x1, y2] == '_')
+	{
+		possibleSeq = String.Join("", Enumerable.Repeat(xChar, Math.Abs(dx)))
+					+ String.Join("", Enumerable.Repeat(yChar, Math.Abs(dy))) + "A";
+		possibleSequences = [possibleSeq];
+	}
+	else
+	{
+		possibleSequences.Add(String.Join("", Enumerable.Repeat(xChar, Math.Abs(dx)))
+							  + String.Join("", Enumerable.Repeat(yChar, Math.Abs(dy))) 
+							  + "A");
 		
-		if (c == 'A')
+		possibleSequences.Add(String.Join("", Enumerable.Repeat(yChar, Math.Abs(dy)))
+							  + String.Join("", Enumerable.Repeat(xChar, Math.Abs(dx))) 
+							  + "A");
+	}
+	
+	cache3[key] = possibleSequences;
+	return possibleSequences;
+}
+
+BigInteger getShortestSequenceLength(char _startCh, string _code, string _padName, int iterations)
+{
+	if (iterations == 0)
+	{
+		return _code.Length;
+	}
+	
+	if (_code == "")
+	{
+		return 0;
+	}
+	
+	char _nextCh = _code.ElementAt(0);
+	string key = "" + iterations + ":" + _startCh + _nextCh;
+	BigInteger charInstructionsLength;
+	
+	if (cache2.ContainsKey(key))
+	{
+		charInstructionsLength = cache2[key];
+	}
+	else 
+	{
+		List<string> sequences = pressButton(_startCh, _nextCh, _padName);
+		BigInteger minLength = Int64.MaxValue;
+		
+		foreach (string sequence in sequences)
 		{
-			newSequence += 'A';
-			i++;
+			BigInteger sequenceLength = getShortestSequenceLength('A', sequence, "controlPad", iterations - 1);
+			minLength = BigInteger.Min(minLength, sequenceLength);
+		}
+		
+		charInstructionsLength = minLength;
+		cache2[key] = charInstructionsLength;
+	}
+	
+	string _remainingCode = _code.Substring(1);
+	BigInteger codeInstructionLength = getShortestSequenceLength(_nextCh, _remainingCode, _padName, iterations);
+	return charInstructionsLength + codeInstructionLength;
+}
+
+// function for debugging
+string reverseSequence(string _sequence)
+{
+	string _code = "";
+	char[,] pad = {{'_', '^', 'A'}, {'<', 'v', '>'}};
+	(int x, int y) = (0, 2);
+	
+	foreach (char move in _sequence)
+	{
+		if (move == '>')
+		{
+			y++;
+		}
+		else if(move == 'v')
+		{
+			x++;
+		}
+		else if(move == '<')
+		{
+			y--;
+		}
+		else if(move == '^')
+		{
+			x--;
+		}
+		else if(move == 'A')
+		{
+			_code += pad[x, y];
 		}
 		else
 		{
-			Dictionary<char, int> charDict = [];
-			int j = i;
-			
-			// Make a dictionary counting all the different charachters up until the next A in the string
-			while (j < _sequence.Length)
-			{
-				char c2 = _sequence.ElementAt(j);
-				if (c2 == 'A')
-				{
-					break;
-				}
-				
-				if (charDict.Keys.Contains(c2))
-				{
-					charDict[c2]++;
-				}
-				else
-				{
-					charDict[c2] = 1;
-				}
-				
-				j++;
-			}
-			
-			foreach (char key in charDict.Keys)
-			{
-				newSequence += String.Join("", Enumerable.Repeat(key, charDict[key]));	
-			}
-			
-			i = j;
+			throw new Exception("invalid char in sequence");
+		}
+		
+		if ((x == 0 && y == 0) || x < 0 || y < 0 || x > 1 || y > 2)
+		{
+			throw new Exception("invalid sequence applied");
 		}
 	}
 	
-	return newSequence;
+	return _code;
 }
 
-long solution1 = 0;
+BigInteger solution1 = 0;
+BigInteger solution2 = 0;
 
 foreach (string code in codes)
 {
+	Console.WriteLine(code);
 	int num = Int32.Parse(code.Substring(0,3));
-	string sequence = getButtonSequence(code, true);
-	sequence = getButtonSequence(sequence, false);
-	sequence = getButtonSequence(sequence, false);	
-	Console.WriteLine("length = " + sequence.Length + ", num = " + num + ", sequence = " + sequence);
-	solution1 += num * sequence.Length;
+	BigInteger len1 = getShortestSequenceLength('A', code, "keypad", 3);
+	BigInteger len2 = getShortestSequenceLength('A', code, "keypad", 26);
+	// Console.WriteLine("length = " + len1 + ", num = " + num);
+	solution1 += num * len1;
+	solution2 += num * len2;
 }
 	
 Console.WriteLine("Solution1 = " + solution1);
+Console.WriteLine("Solution2 = " + solution2);
 
 
-// string cd = "980";
-
-// string ssequence = getButtonSequence(cd, "keypad");
-// Console.WriteLine(ssequence);
-// ssequence = getButtonSequence(ssequence, "controlPad");
-// Console.WriteLine(ssequence);
-// ssequence = getButtonSequence(ssequence, "controlPad");
-// Console.WriteLine(ssequence);
-
-// ^A^^<<A>>AvvvA
-
-// <A>A<AAv<AA^>>AvAA^Av<AAA^>A
-
-// <v<A>>^AvA^A<vA<AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A
-// v<<A^>>AvA^Av<<A^>>AAv<A<A^>>AA<Av>AA^Av<A^>AA<A>Av<A<A^>>AAA<Av>A^A
-
-/* 
-7 8 9   ^A
-4 5 6  <v>
-1 2 3
-  0 A
-*/
