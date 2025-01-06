@@ -1,0 +1,15 @@
+/Users/nathanedwards/Dev/AoC/23/23/bin/Debug/net9.0/23
+/Users/nathanedwards/Dev/AoC/23/23/bin/Debug/net9.0/23.deps.json
+/Users/nathanedwards/Dev/AoC/23/23/bin/Debug/net9.0/23.runtimeconfig.json
+/Users/nathanedwards/Dev/AoC/23/23/bin/Debug/net9.0/23.dll
+/Users/nathanedwards/Dev/AoC/23/23/bin/Debug/net9.0/23.pdb
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.GeneratedMSBuildEditorConfig.editorconfig
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.AssemblyInfoInputs.cache
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.AssemblyInfo.cs
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.csproj.CoreCompileInputs.cache
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.sourcelink.json
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.dll
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/refint/23.dll
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.pdb
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/23.genruntimeconfig.cache
+/Users/nathanedwards/Dev/AoC/23/23/obj/Debug/net9.0/ref/23.dll
