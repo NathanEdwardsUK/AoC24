@@ -1,0 +1,57 @@
+Wrong output wires
+z06
+ksv
+kbs
+z20
+z39
+ckb
+tqq
+nbd
+
+x06 AND y06 z06 s
+
+dhf XOR rrw z07
+x07 XOR y07 dhf o
+qrm OR ksv rrw
+qtf AND nsp qrm
+sqd OR pvg qtf
+qpj AND vmh sqd
+y05 AND x05 pvg
+x06 XOR y06 nsp
+qtf XOR nsp ksv s
+
+dnn XOR nbd z10
+jwh OR gcp dnn
+tnc AND gbw jwh
+x09 AND y09 gcp
+x10 AND y10 nbd s
+
+jsv XOR pjk z11 
+jvr OR kbs jsv
+nbd AND dnn jvr
+y10 XOR x10 kbs s
+y11 XOR x11 pjk
+
+tsm OR dnc z20 s
+bnp AND mtq tsm
+skb OR hfc bnp
+x19 AND y19 skb
+dcq AND knt hfc
+y20 XOR x20 mtq
+x20 AND y20 dnc
+
+gmm XOR tqq z21
+y21 XOR x21 gmm
+bnp XOR mtq tqq s
+
+cmj AND hpp z39 s
+x39 XOR y39 cmj
+mrc OR ftb hpp
+x38 AND y38 mrc
+jmf AND fkg ftb
+
+btg XOR fsm z40 o
+kqt OR ckb btg
+x39 AND y39 kqt
+hpp XOR cmj ckb s
+x40 XOR y40 fsm o
